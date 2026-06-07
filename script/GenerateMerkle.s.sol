@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
 import {Merkle} from "../lib/murky/src/Merkle.sol";
@@ -31,7 +31,7 @@ contract GenerateMerkle is Script {
 
         // __________ Generate proofs untuk setiap address __________
         console.log("==================================================================");
-        console.log("                     MERKLE TREE GENERATION("                     ");
+        console.log("                      MERKLE TREE GENERATION                      ");
         console.log("==================================================================");
         console.log("Whitelist addresses:");
         for (uint256 i = 0; i < whitelist.length; i++) {
