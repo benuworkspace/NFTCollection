@@ -103,7 +103,7 @@ contract NFTCollectionTest is Test {
 
     /// @dev Aktifkan public mint dan return
     function _activatePublicMint() internal {
-        if (!nft.togglePublicMint()) {
+        if (!nft.publicMintActive()) {
             nft.togglePublicMint();
         }
         assertTrue(nft.publicMintActive());
@@ -116,12 +116,6 @@ contract NFTCollectionTest is Test {
         assertTrue(nft.whitelistMintActive());
     }
 
-    /// @dev Aktifkan whitelist mint
-    function _activateWhitelistMint() internal {
-        nft.toggleWhitelistMint();
-        assertTrue(nft.whitelistMintActive());
-    }
-
     /// @dev Reveal collection dengan base URI
     function _reveal() internal {
         nft.reveal(BASE_URI);
@@ -130,8 +124,8 @@ contract NFTCollectionTest is Test {
 
     /// @dev Mint sejumlah NFT untuk user via public mint
     function _publicMintFor(address user, uint256 quantity) internal {
-        if (nft.publicMintActive()) {
-            nft.togglePublicMInt();
+        if (!nft.publicMintActive()) {
+            nft.togglePublicMint();
         }
         vm.prank(user);
         nft.publicMint{value: MINT_PRICE * quantity}(quantity);
@@ -652,9 +646,10 @@ contract NFTCollectionTest is Test {
     }
 
     function test_SetMerkleRoot_NewWhitelistApplied() public {
-        // Buat whitelist baru hanya untuk nonWhitelisted
-        bytes32[] memory newLeaves = new bytes32[](1);
+        // Buat whitelist baru untuk nonWhitelisted dan user1 agar Merkle library dapat bekerja
+        bytes32[] memory newLeaves = new bytes32[](2);
         newLeaves[0] = keccak256(abi.encodePacked(nonWhitelisted));
+        newLeaves[1] = keccak256(abi.encodePacked(user1));
 
         bytes32 newRoot             = merkleLib.getRoot(newLeaves);
         bytes32[] memory newProof   = merkleLib.getProof(newLeaves, 0);
