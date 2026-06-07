@@ -240,5 +240,43 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
 
         // ___ Validasi Phase ___
         if (!whitelistMintActive) revert MintNotActive("whitelist");
+
+        // ── Validasi belum pernah whitelist mint ──────────────────
+        if (whitelistMinted[msg.sender]) revert AlreadyWhitelistMinted();
+
+        // ── Validasi supply ───────────────────────────────────────
+        if (_tokenIdCounter + 1 > MAX_SUPPLY) revert CollectionSoldOut();
+
+        // ── Validasi Merkle proof ─────────────────────────────────
+        // Buat leaf dari address caller
+        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+
+        // Verifikasi proof terhadap merkleRoot yang tersimpan
+        if (!MerkleProof.verify(proof, merkleRoot, leaf)) {
+            revert InvalidMerkleProof();
+        }
+
+        // ── Validasi pembayaran ───────────────────────────────────
+        if (msg.value < whitelistMintPrice) {
+            revert InsufficientPayment(msg.value, whitelistMintPrice);
+        }
+
+        // ── Mint ──────────────────────────────────────────────────
+        // Mark sebagai sudah whitelist mint SEBELUM mint
+        whitelistMinted[msg.sender] = true;
+
+        _tokenIdCounter++;
+        uint256 newTokenId = _tokenIdCounter;
+
+        _safeMint(msg.sender, newTokenId);
+
+        emit NFTMinted(msg.sender, newTokenId, whitelistMintPrice, true);
+
+        // ── Refund kelebihan ETH ──────────────────────────────────
+        uint256 excess = msg.value - whitelistMintPrice;
+        if (excess > 0) {
+            (bool refunded, ) = payable(msg.sender).call{value: excess}("");
+            refunded;
+        }
     }
 }
