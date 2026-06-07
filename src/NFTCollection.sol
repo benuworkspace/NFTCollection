@@ -241,13 +241,13 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
         // ___ Validasi Phase ___
         if (!whitelistMintActive) revert MintNotActive("whitelist");
 
-        // ── Validasi belum pernah whitelist mint ──────────────────
+        // ___ Validasi belum pernah whitelist mint ___
         if (whitelistMinted[msg.sender]) revert AlreadyWhitelistMinted();
 
-        // ── Validasi supply ───────────────────────────────────────
+        // ___ Validasi supply ___
         if (_tokenIdCounter + 1 > MAX_SUPPLY) revert CollectionSoldOut();
 
-        // ── Validasi Merkle proof ─────────────────────────────────
+        // ___ Validasi Merkle proof ___
         // Buat leaf dari address caller
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
 
@@ -256,12 +256,12 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
             revert InvalidMerkleProof();
         }
 
-        // ── Validasi pembayaran ───────────────────────────────────
+        // ___ Validasi pembayaran ___
         if (msg.value < whitelistMintPrice) {
             revert InsufficientPayment(msg.value, whitelistMintPrice);
         }
 
-        // ── Mint ──────────────────────────────────────────────────
+        // ___ MINT ___
         // Mark sebagai sudah whitelist mint SEBELUM mint
         whitelistMinted[msg.sender] = true;
 
@@ -272,11 +272,171 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
 
         emit NFTMinted(msg.sender, newTokenId, whitelistMintPrice, true);
 
-        // ── Refund kelebihan ETH ──────────────────────────────────
+        // ___ Refund kelebihan ETH ___
         uint256 excess = msg.value - whitelistMintPrice;
         if (excess > 0) {
             (bool refunded, ) = payable(msg.sender).call{value: excess}("");
             refunded;
         }
+    }
+
+
+        // ______ Admin Functions ______
+
+    /// @notice Reveal the collection with real metadata URI
+    /// @param baseURI Base URI for revealed metadata
+    function reveal(string memory baseURI) external onlyOwner {
+        require(!revealed, "Already revealed");
+        require(bytes(baseURI).length > 0, "Empty base URI");
+
+        revealed       = true;
+        _baseTokenURI  = baseURI;
+
+        emit CollectionRevealed(baseURI, block.timestamp);
+    }
+
+    /// @notice Toggle public mint phase
+    function togglePublicMint() external onlyOwner {
+        publicMintActive = !publicMintActive;
+        emit MintPhaseToggled("public", publicMintActive);
+    }
+
+    /// @notice Toggle whitelist mint phase
+    function toggleWhitelistMint() external onlyOwner {
+        whitelistMintActive = !whitelistMintActive;
+        emit MintPhaseToggled("whitelist", whitelistMintActive);
+    }
+
+    /// @notice Update public mint price
+    /// @param newPrice New price in wei
+    function setMintPrice(uint256 newPrice) external onlyOwner {
+        uint256 oldPrice = mintPrice;
+        mintPrice        = newPrice;
+        emit MintPriceUpdated(oldPrice, newPrice);
+    }
+
+    /// @notice Update whitelist mint price
+    /// @param newPrice New price in wei
+    function setWhitelistMintPrice(uint256 newPrice) external onlyOwner {
+        uint256 oldPrice         = whitelistMintPrice;
+        whitelistMintPrice       = newPrice;
+        emit MintPriceUpdated(oldPrice, newPrice);
+    }
+
+    /// @notice Update Merkle root for whitelist
+    /// @param newRoot New Merkle root
+    function setMerkleRoot(bytes32 newRoot) external onlyOwner {
+        merkleRoot = newRoot;
+    }
+
+    /// @notice Update hidden metadata URI
+    /// @param newURI New hidden metadata URI
+    function setHiddenMetadataURI(string memory newURI) external onlyOwner {
+        _hiddenMetadataURI = newURI;
+    }
+
+    /// @notice Mint NFTs directly to address (owner only)
+    /// @dev Used for giveaways, team allocation, etc.
+    /// @param to Recipient address
+    /// @param quantity Number of NFTs to mint
+    function ownerMint(
+        address to,
+        uint256 quantity
+    ) external onlyOwner {
+        if (_tokenIdCounter + quantity > MAX_SUPPLY) {
+            revert CollectionSoldOut();
+        }
+
+        for (uint256 i = 0; i < quantity; i++) {
+            _tokenIdCounter++;
+            _safeMint(to, _tokenIdCounter);
+            emit NFTMinted(to, _tokenIdCounter, 0, false);
+        }
+    }
+
+    /// @notice Pause all mint operations
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause mint operations
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice Withdraw all ETH from contract to owner
+    function withdraw() external onlyOwner nonReentrant {
+        uint256 balance = address(this).balance;
+        if (balance == 0) revert NothingToWithdraw();
+
+        totalWithdrawn += balance;
+
+        // Checks-Effects-Interactions
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        if (!success) revert WithdrawFailed();
+
+        emit ETHWithdrawn(owner(), balance);
+    }
+
+        // ______ View Function ______
+
+    /// @notice Total number of NFTs minted so far
+    function totalSupply() public view returns (uint256) {
+        return _tokenIdCounter;
+    }
+
+    /// @notice Number of NFTs remaining to be minted
+    function remainingSupply() public view returns (uint256) {
+        return MAX_SUPPLY - _tokenIdCounter;
+    }
+
+    /// @notice Check if an address is whitelisted
+    /// @param proof Merkle proof to verify
+    /// @param addr Address to check
+    function isWhitelisted(
+        bytes32[] calldata proof,
+        address addr
+    ) external view returns (bool) {
+        bytes32 leaf = keccak256(abi.encodePacked(addr));
+        return MerkleProof.verify(proof, merkleRoot, leaf);
+    }
+
+    /// @notice Get all mint information in one call
+    function getMintInfo() external view returns (
+        uint256 _totalSupply,
+        uint256 _maxSupply,
+        uint256 _remaining,
+        uint256 _mintPrice,
+        uint256 _whitelistMintPrice,
+        bool _publicMintActive,
+        bool _whitelistMintActive,
+        bool _revealed,
+        bool _paused
+    ) {
+        return (
+            _tokenIdCounter,
+            MAX_SUPPLY,
+            MAX_SUPPLY - _tokenIdCounter,
+            mintPrice,
+            whitelistMintPrice,
+            publicMintActive,
+            whitelistMintActive,
+            revealed,
+            paused()
+        );
+    }
+
+    /// @notice Get mint status for a specific wallet
+    /// @param wallet Address to check
+    function getWalletInfo(address wallet) external view returns (
+        uint256 publicMinted,
+        uint256 publicRemaining,
+        bool whitelistUsed
+    ) {
+        return (
+            publicMintCount[wallet],
+            MAX_PER_WALLET - publicMintCount[wallet],
+            whitelistMinted[wallet]
+        );
     }
 }
