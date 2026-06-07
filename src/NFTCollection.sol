@@ -5,11 +5,11 @@ import {ERC721} from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC72
 import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Pausable} from "../lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
 import {Strings} from "../lib/openzeppelin-contracts/contracts/utils/Strings.sol";
-import {MarkleProof} from "../lib/openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import {MerkleProof} from "../lib/openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 /// @title NFTCollection
-/// @author Absalom Benu
+/// @author Absalom Benu (Bukit Digital Nusantara)
 /// @notice ERC721 NFT Collection with whitelist & reveal mechanism
 /// @dev Implements:
 ///      - Public mint with ETH payment
@@ -17,7 +17,7 @@ import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/Ree
 ///      - Reveal mecanism (hidden until reveal)
 ///      - Max supply and per-wallet enforcement
 ///      - ReentrancyGuard for safe ETH withdraw
-contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
+contract NFTCollection is ERC721, Ownable, Pausable, ReentrancyGuard {
 
     using Strings for uint256;
 
@@ -41,10 +41,10 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
 
     /// @notice Markle root for whitelist verifcation
     /// @dev Generated off-chain from whitelist addresses
-    bytes32 public markleRoot;
+    bytes32 public merkleRoot;
 
-    /// @notice Whether the collection has been reveald
-    bool public reveald = false;
+    /// @notice Whether the collection has been revealed
+    bool public revealed = false;
 
     /// @notice Whether public mint as active
     bool public publicMintActive = false;
@@ -54,21 +54,21 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
 
     /// @notice Current token ID counter
     /// @dev Starts at 0, incremented before mint so first token is #1
-    uint256 public tokenIdCounter = 0;
+    uint256 public _tokenIdCounter = 0;
 
-    /// @notice Base URI for reveald metadata
-    /// @dev Set after reveald - "ipfs://YOUR_METADATA_ID"
-    string public baseTokenURI;
+    /// @notice Base URI for revealed metadata
+    /// @dev Set after revealed - "ipfs://YOUR_METADATA_ID"
+    string public _baseTokenURI;
 
-    /// @notice URI for hidden metadata (before reveald)
+    /// @notice URI for hidden metadata (before revealed)
     /// @dev "ipfs://YOUR_HIDDEN_METADATA_CID/hidden.json"
-    string private _hiddenMetadaURI;
+    string private _hiddenMetadataURI;
 
     /// @notice Track how many NFTs each address has minted (public)
     mapping (address => uint256) public publicMintCount;
 
     /// @notice Track whether address has used whitelist mint
-    mapping (address => bool) public whitelistMInted;
+    mapping (address => bool) public whitelistMinted;
 
     /// @notice Total ETH withdrawn by owner
     uint256 public totalWithdrawn;
@@ -83,7 +83,7 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
         bool isWhitelist
     );
 
-    /// @notice Emitted when collection is reveald
+    /// @notice Emitted when collection is revealed
     event CollectionRevealed(string baseURI, uint256 timestamp);
 
     /// @notice Emitted when ETH is withdrawn
@@ -93,7 +93,7 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
     event MintPriceUpdated(uint256 oldPrice, uint256 newPrice);
 
     /// @notice Emitted when mint phase is toggled
-    event MintPhaseToggeled(string phase, bool active);
+    event MintPhaseToggled(string phase, bool active);
 
         // _______ Errors ________________
     
@@ -110,7 +110,7 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
     error MintNotActive(string phase);
 
     /// @notice Thrown when markle proof is invalid
-    error InvalidMarkleProof();
+    error InvalidMerkleProof();
 
     /// @notice Thrown when address already used whitelist mint
     error AlreadyWhitelistMinted();
@@ -130,32 +130,32 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
     /// @notice Deploy NFT Collection
     /// @param hiddenMetadataURI IPFS URI for hidden metadata
     ///        Example: "ipfs://QmHiddenCID/hidden.json"
-    /// @param _markleRoot Markle root for whitelist
+    /// @param _merkleRoot Markle root for whitelist
     ///        Generate off-chain from whitelist addresses
     constructor(
         string memory hiddenMetadataURI,
-        bytes32 _markleRoot
+        bytes32 _merkleRoot
     )
-        ERC721("Portfolio NFT Collectio", "PNC")
+        ERC721("Portfolio NFT Collection", "PNC")
         Ownable(msg.sender)
     {
         _hiddenMetadataURI = hiddenMetadataURI;
-        markleRoot         = _markleRoot;
+        merkleRoot         = _merkleRoot;
     }
 
 
         // ________ Metadata ____________
     
     /// @notice Returns metadata URI for a given token
-    /// @dev Before reveald: all tokens return hidden metadata URI
-    ///      After reveald: returns unique metadata per token
+    /// @dev Before revealed: all tokens return hidden metadata URI
+    ///      After revealed: returns unique metadata per token
     /// @param tokenId Token ID to get URI for
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {
         // Revert kalau token tidak exist
         // _requireOwned adalah internal function dari OpenZeppelin ERC721
-        _requireOwened(tokenId);
+        _requireOwned(tokenId);
 
         // Sebelem reveal - semua token return hidden metadata
         if (!revealed) {
@@ -181,7 +181,7 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
     ) external payable whenNotPaused nonReentrant {
 
         // ___ Validasi Phase ___
-        if (!publicMIntActive) revert MintNotActive("public");
+        if (!publicMintActive) revert MintNotActive("public");
 
         // ___ Validasi Quantity ___
         if (quantity == 0) revert InvalidQuantity();
@@ -222,7 +222,7 @@ contract NFTCollection is ERC721, Ownable, Pausable, ReecntrancyGuard {
         // Kalau user kirim lebih dari yang butuhkan, kembalikan sisanya
         uint256 excess = msg.value - totalPrice;
         if (excess > 0) {
-            (bool refunded, ) payable(msg.sender).call{value; excess}("");
+            (bool refunded, ) = payable(msg.sender).call{value: excess}("");
             // Kalau refund gagal tidak apa-apa, ETH tetap di contract
             // Lebih baik tidak revert agar mint tetap berhasil
             refunded; // suppress unused variable warning
