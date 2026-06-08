@@ -1,0 +1,24 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployedAt": "2026-06-8",
+  "contracts": {
+    "NFTCollection": {
+      "address": "0xadF5c838C89dc587bCc2A6C7D146159D660a0B06",
+      "deployer": "0xDb6e602b5b90100f5a149398abf2daFBBd1D0386",
+      "txHash": "0xc618ca784ee388d5c5d34fd61a579361b905cdfec5580790c93f74f864b2f778",
+      "blockNumber": 0,
+      "constructorArgs": {
+        "hiddenMetadataURI": "ipfs://bafybeief7bfyyu54yyshlju6errp4kftdq7bvgipw3uikw7c2ensnqaa6i/hidden.json",
+        "merkleRoot": "0x03cc8ffd336ddb79c60daec4d4a9e70515909c1fdc33eacccde4b6d6829f718d"
+      },
+      "etherscan": "https://sepolia.etherscan.io/address/0xadf5c838c89dc587bcc2a6c7d146159d660a0b06",
+      "verified": true,
+      "ipfs": {
+        "imagesCID": "bafybeig7c7oao7oidpydqwcj662jjhwy3x3ywruxxytkjiaxilmy4oivai",
+        "metadataCID": "bafybeidtciy4bvtti55pktamtybhtvs2cri5tmk4lqyvosxywuq4pyvtxm",
+        "hiddenMetadataCID": "bafybeief7bfyyu54yyshlju6errp4kftdq7bvgipw3uikw7c2ensnqaa6i"
+      }
+    }
+  }
+}
