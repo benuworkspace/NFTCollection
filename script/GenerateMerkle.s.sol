@@ -15,10 +15,11 @@ contract GenerateMerkle is Script {
         // __________ Daftar whitelist addresses __________
         // Ganti dengan address nyata yang ingin kamu whitelist
         // Untuk testing, gunakan address deployer kamu sendiri
-        address[] memory whitelist = new address[](3);
+        address[] memory whitelist = new address[](4);
         whitelist[0] = vm.envAddress("DEPLOYER_ADDRESS");
-        whitelist[1] = 0x000000000000000000000000000000000000dEaD; // placeholder
-        whitelist[2] = 0x000000000000000000000000000000000000bEEF; // placeholder
+        whitelist[1] = 0xDb6e602b5b90100f5a149398abf2daFBBd1D0386; // my wallet address
+        whitelist[2] = 0x000000000000000000000000000000000000dEaD; // placeholder
+        whitelist[3] = 0x000000000000000000000000000000000000bEEF; // placeholder
 
         // __________ Generate leaves __________
         bytes32[] memory leaves = new bytes32[](whitelist.length);

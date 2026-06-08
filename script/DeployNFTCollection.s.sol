@@ -17,7 +17,7 @@ contract DeployNFTCollection is Script {
 
     function run() public returns (NFTCollection nft) {
 
-        // ── Load environment ──────────────────────────────────────
+        // _______________ Load environment _______________
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer           = vm.addr(deployerPrivateKey);
 
@@ -27,13 +27,13 @@ contract DeployNFTCollection is Script {
         // Merkle root yang di-generate dari GenerateMerkle.s.sol
         bytes32 merkleRoot = vm.envBytes32("MERKLE_ROOT");
 
-        // ── Pre-deploy logging ────────────────────────────────────
+        // _______________ Pre-deploy logging _______________
         console.log("===================================================================");
         console.log("                      Deploying NFTCollection                      ");
         console.log("===================================================================");
         console.log("Deployer          :", deployer);
         console.log("Hidden URI        :", hiddenMetadataURI);
-        console.log("Merkle Root       :");
+        console.log("Merkle Root       :" );
         console.logBytes32(merkleRoot);
         console.log("Max Supply        : 5");
         console.log("Mint Price        : 0.01 ETH");
@@ -41,14 +41,14 @@ contract DeployNFTCollection is Script {
         console.log("Network Chain ID  :", block.chainid);
         console.log("===================================================================");
 
-        // ── Deploy ────────────────────────────────────────────────
+        // _______________ Deploy _______________
         vm.startBroadcast(deployerPrivateKey);
 
         nft = new NFTCollection(hiddenMetadataURI, merkleRoot);
 
         vm.stopBroadcast();
 
-        // ── Post-deploy logging ───────────────────────────────────
+        // _______________ Post-deploy logging _______________
         console.log("===================================================================");
         console.log("                        Deploy Successful!!                        ");
         console.log("===================================================================");
